@@ -1,0 +1,2786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForeCastr - Social Prediction Game</title>
+    
+    <!-- Farcaster Mini App Metadata -->
+    <script type="application/json" data-farcaster-mini-app>
+        {
+            "name": "ForeCastr",
+            "description": "Predict social media metrics in a Studio Ghibli themed world",
+            "icon": {
+                "url": "https://placehold.co/512x512/7b2cbf/ffffff.png?text=FC"
+            },
+            "developer": {
+                "name": "ForeCastr Team",
+                "url": "https://bolt.new"
+            },
+            "categories": ["Social", "Predictions", "Games"],
+            "capabilities": ["notifications", "add-app", "scan-qr-code"],
+            "primaryColor": "#7b2cbf",
+            "primaryButtonColor": "#5a189a",
+            "textButtonColor": "#ffffff",
+            "version": "1.0.0"
+        }
+    </script>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.multisynq.io/client/multisynq-1.6.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@farcaster/frame-sdk/dist/index.min.js"></script>
+    
+    <style>
+        /* ----- Main Styles ----- */
+        
+        /* Variables */
+        :root {
+            --primary-color: #7b2cbf;
+            --primary-light: #9d4edd;
+            --primary-dark: #5a189a;
+            --secondary-color: #c77dff;
+            --accent-color: #e0aaff;
+            --text-color: #240046;
+            --light-text: #f8f9fa;
+            --background-color: #f5f3ff;
+            --card-color: #ffffff;
+            --border-color: #d0c6e7;
+            --ghibli-blue: #7ec8e3;
+            --ghibli-green: #89c9b8;
+            --error-color: #ff6b6b;
+            --success-color: #51cf66;
+            
+            /* Farcaster-specific colors */
+            --farcaster-purple: #8a63d2;
+            --farcaster-light: #b794f6;
+            --farcaster-dark: #6247aa;
+        }
+
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgY3g9IjUwJSIgY3k9IjUwJSIgZng9IjUwJSIgZnk9IjUwJSIgcj0iNTAlIiBpZD0iYSI+PHN0b3Agc3RvcC1jb2xvcj0iI2U4ZTRmNSIgb2Zmc2V0PSIwJSIvPjxzdG9wIHN0b3AtY29sb3I9IiNmNWYzZmYiIG9mZnNldD0iMTAwJSIvPjwvcmFkaWFsR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iMTAwIiBmaWxsPSJ1cmwoI2EpIiBvcGFjaXR5PSIwLjUiLz48L3N2Zz4=');
+            background-repeat: repeat;
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+
+        #app {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Loading Screen */
+        #loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: var(--primary-light);
+            z-index: 9999;
+            color: var(--light-text);
+        }
+
+        /* Error display */
+        #error-message {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--error-color);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        /* Fallback content */
+        #fallback-content {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        #fallback-content h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        #fallback-content p {
+            margin-bottom: 20px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        #retry-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        #retry-button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .spirit-loading {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .soot-sprite {
+            width: 30px;
+            height: 30px;
+            background-color: #000;
+            border-radius: 50%;
+            margin: 0 10px;
+            animation: bounce 0.6s infinite alternate;
+        }
+
+        .soot-sprite:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .soot-sprite:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+            from {
+                transform: translateY(0);
+            }
+            to {
+                transform: translateY(-20px);
+            }
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: var(--primary-color);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            color: var(--light-text);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-right: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .floating-totoro {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        .user-panel {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-profile {
+            margin-right: 20px;
+        }
+
+        .user-profile label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .user-profile input {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 20px;
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            width: 180px;
+        }
+
+        .session-info {
+            text-align: center;
+        }
+
+        #qr-code {
+            margin-bottom: 5px;
+        }
+
+        #session-url {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 160px);
+        }
+
+        /* Sidebars */
+        .sidebar {
+            background-color: var(--card-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+        }
+
+        .sidebar h2 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        /* Leaderboard */
+        #leaderboard-list {
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background-color: var(--background-color);
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .leaderboard-rank {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .leaderboard-item:nth-child(1) .leaderboard-rank {
+            background-color: gold;
+            color: var(--text-color);
+        }
+
+        .leaderboard-item:nth-child(2) .leaderboard-rank {
+            background-color: silver;
+            color: var(--text-color);
+        }
+
+        .leaderboard-item:nth-child(3) .leaderboard-rank {
+            background-color: #cd7f32;
+            color: white;
+        }
+
+        .leaderboard-username {
+            flex-grow: 1;
+            font-weight: bold;
+        }
+
+        .leaderboard-score {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        /* Prediction Panel */
+        .prediction-panel {
+            background-color: var(--card-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+            overflow-y: auto;
+        }
+
+        .prediction-panel h2 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        .create-prediction {
+            background-color: var(--background-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .create-prediction h3 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--card-color);
+        }
+
+        .btn-submit {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: block;
+            margin: 15px auto 0;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .active-predictions h3 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .prediction-card {
+            background-color: var(--background-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--primary-color);
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .prediction-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .prediction-user {
+            font-weight: bold;
+        }
+
+        .prediction-platform {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+        }
+
+        .platform-twitter {
+            background-color: #1DA1F2;
+        }
+
+        .platform-instagram {
+            background-color: #E1306C;
+        }
+
+        .platform-tiktok {
+            background-color: #000000;
+        }
+
+        .platform-youtube {
+            background-color: #FF0000;
+        }
+
+        .prediction-details {
+            margin-bottom: 10px;
+        }
+
+        .prediction-target {
+            font-weight: bold;
+        }
+
+        .prediction-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        .prediction-deadline {
+            font-style: italic;
+        }
+
+        .prediction-status {
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: var(--primary-color);
+        }
+
+        .status-correct {
+            color: var(--success-color);
+        }
+
+        .status-incorrect {
+            color: var(--error-color);
+        }
+
+        /* Chat Panel */
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .chat-message {
+            margin-bottom: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .message-username {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-right: 8px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: var(--text-color);
+            opacity: 0.6;
+        }
+
+        .message-body {
+            background-color: var(--background-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-top-left-radius: 0;
+            word-break: break-word;
+        }
+
+        .my-message .message-header {
+            justify-content: flex-end;
+        }
+
+        .my-message .message-username {
+            order: 2;
+            margin-right: 0;
+            margin-left: 8px;
+        }
+
+        .my-message .message-body {
+            background-color: var(--accent-color);
+            border-radius: 8px;
+            border-top-right-radius: 0;
+        }
+
+        .chat-input {
+            display: flex;
+        }
+
+        .chat-input input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px 0 0 20px;
+        }
+
+        .chat-input button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0 20px 20px 0;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .chat-input button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        /* Animations */
+        .flying-sprite {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Debug Panel */
+        #debug-panel {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 9999;
+            max-width: 300px;
+            max-height: 200px;
+            overflow: auto;
+            display: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            
+            .chat-panel {
+                grid-column: span 2;
+                margin-top: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+            }
+            
+            .logo {
+                margin-bottom: 15px;
+            }
+            
+            .user-panel {
+                flex-direction: column;
+            }
+            
+            .user-profile {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+            
+            .prediction-panel, .leaderboard-panel, .chat-panel {
+                margin-bottom: 20px;
+            }
+        }
+
+        /* ---- Farcaster Specific Styles ---- */
+
+        /* Farcaster button */
+        .farcaster-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--farcaster-purple);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .farcaster-button:hover {
+            background-color: var(--farcaster-dark);
+        }
+
+        .farcaster-button .icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8L8 12l4 4"/><path d="M16 12H8"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* Farcaster authentication panel */
+        .farcaster-auth {
+            background-color: var(--card-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--farcaster-purple);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .farcaster-auth-content {
+            flex-grow: 1;
+        }
+
+        .farcaster-auth h3 {
+            color: var(--farcaster-dark);
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .farcaster-auth p {
+            font-size: 14px;
+            color: var(--text-color);
+            margin-bottom: 0;
+        }
+
+        /* Farcaster user profile */
+        .farcaster-user {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: var(--background-color);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .farcaster-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--farcaster-light);
+            background-size: cover;
+            background-position: center;
+            margin-right: 10px;
+        }
+
+        .farcaster-username {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .farcaster-fid {
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        /* Share prediction button */
+        .share-prediction {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Farcaster notification */
+        .farcaster-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--card-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            width: 300px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+            overflow: hidden;
+        }
+
+        .notification-content {
+            display: flex;
+            padding: 15px;
+            position: relative;
+        }
+
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--farcaster-purple);
+            margin-right: 10px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8L8 12l4 4"/><path d="M16 12H8"/></svg>');
+            background-size: 60%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .notification-text {
+            flex-grow: 1;
+        }
+
+        .notification-text h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            color: var(--text-color);
+        }
+
+        .notification-text p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        .notification-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-color);
+            opacity: 0.5;
+            cursor: pointer;
+        }
+
+        .notification-close:hover {
+            opacity: 1;
+        }
+
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        /* Farcaster context indicator */
+        .farcaster-context-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--farcaster-purple);
+            color: white;
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .farcaster-context-badge .icon {
+            width: 14px;
+            height: 14px;
+            margin-right: 5px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8L8 12l4 4"/><path d="M16 12H8"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* Prediction card Farcaster integration */
+        .prediction-card .prediction-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .prediction-card .farcaster-shares {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: var(--farcaster-purple);
+        }
+
+        .prediction-card .farcaster-shares .icon {
+            width: 14px;
+            height: 14px;
+            margin-right: 5px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%238a63d2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8L8 12l4 4"/><path d="M16 12H8"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* Mini App banner when running in Farcaster */
+        .mini-app-banner {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--farcaster-purple) 100%);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mini-app-banner p {
+            margin: 0;
+        }
+
+        .mini-app-banner .add-app-button {
+            background-color: white;
+            color: var(--farcaster-purple);
+            border: none;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Animation for Farcaster shares */
+        @keyframes popEffect {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pop-animation {
+            animation: popEffect 0.3s ease-out;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-color);
+            opacity: 0.7;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="loading">
+            <div class="spirit-loading">
+                <div class="soot-sprite"></div>
+                <div class="soot-sprite"></div>
+                <div class="soot-sprite"></div>
+            </div>
+            <p>Connecting to the network...</p>
+            <div id="error-message" style="display: none;"></div>
+        </div>
+
+        <!-- Fallback content that shows if initialization fails -->
+        <div id="fallback-content">
+            <h2>ForeCastr</h2>
+            <p>We're having trouble connecting to our prediction network. This could be due to network issues or server maintenance.</p>
+            <button id="retry-button">Try Again</button>
+        </div>
+
+        <div id="main-content" style="display: none;">
+            <!-- Header -->
+            <header>
+                <div class="logo">
+                    <h1>ForeCastr</h1>
+                    <div class="floating-totoro"></div>
+                </div>
+                <div class="user-panel">
+                    <div class="user-profile">
+                        <label for="username">Your Forecaster Name:</label>
+                        <input type="text" id="username" maxlength="15" placeholder="Enter name...">
+                        <div id="farcaster-profile" style="display: none;" class="farcaster-user">
+                            <div class="farcaster-avatar" id="farcaster-avatar"></div>
+                            <div class="farcaster-user-info">
+                                <div class="farcaster-username" id="farcaster-username"></div>
+                                <div class="farcaster-fid" id="farcaster-fid"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="farcaster-connect">
+                        <button id="connect-farcaster" class="farcaster-button">
+                            <div class="icon"></div>
+                            Connect Farcaster
+                        </button>
+                    </div>
+                    <div class="session-info">
+                        <div id="qr-code"></div>
+                        <div id="session-url"></div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main app container -->
+            <div class="main-container">
+                <!-- Left sidebar - Leaderboard -->
+                <aside class="sidebar leaderboard-panel">
+                    <h2>Forecaster Rankings</h2>
+                    <div id="leaderboard-list"></div>
+                </aside>
+
+                <!-- Main content - Predictions -->
+                <main class="prediction-panel">
+                    <h2>Divine the Future</h2>
+                    <div class="create-prediction">
+                        <h3>Cast a New Prophecy</h3>
+                        
+                        <!-- Farcaster authentication banner (shows only when in Farcaster context) -->
+                        <div id="farcaster-mini-app-banner" class="mini-app-banner" style="display: none;">
+                            <p>Add ForeCastr to your Farcaster profile for notifications</p>
+                            <button id="add-to-farcaster" class="add-app-button">Add App</button>
+                        </div>
+                        
+                        <form id="prediction-form">
+                            <div class="form-group">
+                                <label for="platform">Platform:</label>
+                                <select id="platform">
+                                    <option value="twitter">Twitter/X</option>
+                                    <option value="instagram">Instagram</option>
+                                    <option value="tiktok">TikTok</option>
+                                    <option value="youtube">YouTube</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="account">Account:</label>
+                                <input type="text" id="account" placeholder="@username">
+                            </div>
+                            <div class="form-group">
+                                <label for="metric">Metric:</label>
+                                <select id="metric">
+                                    <option value="followers">Followers</option>
+                                    <option value="likes">Likes on latest post</option>
+                                    <option value="views">Views on latest post</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="prediction-value">Will reach:</label>
+                                <input type="number" id="prediction-value" placeholder="Enter value">
+                            </div>
+                            <div class="form-group">
+                                <label for="deadline">By:</label>
+                                <input type="datetime-local" id="deadline">
+                            </div>
+                            <button type="submit" class="btn-submit">Prophesize!</button>
+                            <div class="share-prediction">
+                                <button type="button" id="share-to-farcaster" class="farcaster-button">
+                                    <div class="icon"></div>
+                                    Share to Farcaster
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="active-predictions">
+                        <h3>Active Prophecies</h3>
+                        <div id="predictions-list"></div>
+                    </div>
+                </main>
+
+                <!-- Right sidebar - Chat -->
+                <aside class="sidebar chat-panel">
+                    <h2>Forecaster Chat</h2>
+                    <div id="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-message" placeholder="Share your thoughts...">
+                        <button id="send-message">Send</button>
+                    </div>
+                </aside>
+            </div>
+        </div>
+        
+        <!-- Debug Panel -->
+        <div id="debug-panel"></div>
+    </div>
+
+    <script>
+        /**
+         * ForeCastr App - A Studio Ghibli themed social prediction app with Farcaster integration
+         * Version: 1.1 (With improved error handling and fallbacks)
+         */
+        
+        // Log key events for debugging
+        const DEBUG_MODE = true;
+        
+        function logDebug(message, data) {
+            if (!DEBUG_MODE) return;
+            
+            console.log(`[ForeCastr] ${message}`, data || '');
+            
+            // Add to debug panel if it exists
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel) {
+                const entry = document.createElement('div');
+                entry.textContent = `${new Date().toISOString().substr(11, 8)} - ${message}`;
+                debugPanel.appendChild(entry);
+                debugPanel.scrollTop = debugPanel.scrollHeight;
+            }
+        }
+        
+        // Show debug panel when 'd' key is pressed
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'd' && e.ctrlKey) {
+                const debugPanel = document.getElementById('debug-panel');
+                if (debugPanel) {
+                    debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+                }
+            }
+        });
+
+        // Initialize the app with better error handling
+        function initializeApp() {
+            logDebug('Initializing app...');
+            
+            // Set date input default to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const defaultDeadline = tomorrow.toISOString().slice(0, 16);
+            const deadlineInput = document.getElementById('deadline');
+            if (deadlineInput) {
+                deadlineInput.value = defaultDeadline;
+                deadlineInput.min = new Date().toISOString().slice(0, 16);
+            }
+            
+            // Check if Multisynq is available
+            if (typeof Multisynq === 'undefined') {
+                showError('Multisynq library failed to load. Please check your internet connection and try again.');
+                showFallbackContent();
+                logDebug('Multisynq is undefined');
+                return;
+            }
+            
+            // Set initialization timeout to prevent hanging forever
+            const initTimeout = setTimeout(() => {
+                logDebug('Initialization timeout reached');
+                showError('Connection timed out. Please check your internet connection and try again.');
+                showFallbackContent();
+            }, 15000); // 15 second timeout
+            
+            logDebug('Attempting to join Multisynq session');
+            
+            try {
+                // Session will be automatically created or joined from URL parameters
+                const apiKey = '2oLVdQLTzSpiAGQreAwivQpTTIPZ7IMWL1hlZuGWJZ'; // Multisynq API key
+                Multisynq.Session.join({
+                    apiKey,
+                    autoSession: true,
+                    autoPassword: true,
+                    modelClass: SocialPredictionApp,
+                    viewClass: AppView,
+                    onReady: () => {
+                        clearTimeout(initTimeout);
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('main-content').style.display = 'block';
+                        document.getElementById('fallback-content').style.display = 'none';
+                        initializeAnimations();
+                        logDebug('App successfully initialized');
+                    },
+                    onError: (error) => {
+                        clearTimeout(initTimeout);
+                        logDebug('Multisynq error', error);
+                        showError('Failed to connect to the prediction network: ' + error.message);
+                        showFallbackContent();
+                    }
+                });
+                
+                // Enable QR code widget for sharing sessions
+                try {
+                    Multisynq.Widget.makeWidgetDock();
+                } catch (widgetError) {
+                    logDebug('Widget error', widgetError);
+                    // Non-critical error, continue without QR code widget
+                }
+            } catch (error) {
+                clearTimeout(initTimeout);
+                logDebug('Fatal initialization error', error);
+                showError('A critical error occurred: ' + error.message);
+                showFallbackContent();
+            }
+        }
+        
+        // Show an error message
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            }
+            logDebug('ERROR: ' + message);
+        }
+        
+        // Show fallback content when initialization fails
+        function showFallbackContent() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('main-content').style.display = 'none';
+            document.getElementById('fallback-content').style.display = 'block';
+            
+            // Add retry button functionality
+            document.getElementById('retry-button').addEventListener('click', () => {
+                // Reset UI state
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('fallback-content').style.display = 'none';
+                document.getElementById('error-message').style.display = 'none';
+                
+                // Try initialization again
+                setTimeout(initializeApp, 500);
+            });
+        }
+
+        // Add a simple standalone app mode for when Multisynq fails
+        function startStandaloneMode() {
+            logDebug('Starting standalone mode');
+            
+            // Add simple functionality without Multisynq
+            const usernameInput = document.getElementById('username');
+            if (usernameInput) {
+                // Load saved username
+                const savedUsername = localStorage.getItem('io.multisynq.forecastr.username');
+                if (savedUsername) {
+                    usernameInput.value = savedUsername;
+                }
+                
+                // Save username on change
+                usernameInput.addEventListener('change', () => {
+                    const username = usernameInput.value.trim();
+                    if (username) {
+                        localStorage.setItem('io.multisynq.forecastr.username', username);
+                    }
+                });
+            }
+            
+            // Add dummy predictions
+            const predictionsList = document.getElementById('predictions-list');
+            if (predictionsList) {
+                predictionsList.innerHTML = `
+                    <div class="prediction-card">
+                        <div class="prediction-header">
+                            <span class="prediction-user">DemoUser</span>
+                            <span class="prediction-platform platform-twitter">twitter</span>
+                        </div>
+                        <div class="prediction-details">
+                            <p>
+                                <span class="prediction-target">@elonmusk</span> will have 
+                                <strong>180,000,000</strong> 
+                                followers by ${new Date(tomorrow).toLocaleString()}
+                            </p>
+                        </div>
+                        <div class="prediction-footer">
+                            <span class="prediction-deadline">Resolves in: 1d 0h</span>
+                            <span class="prediction-status status-pending">Pending</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Display dummy leaderboard
+            const leaderboardList = document.getElementById('leaderboard-list');
+            if (leaderboardList) {
+                leaderboardList.innerHTML = `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-rank">1</div>
+                        <div class="leaderboard-username">PredictionMaster</div>
+                        <div class="leaderboard-score">750</div>
+                    </div>
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-rank">2</div>
+                        <div class="leaderboard-username">FutureSeer</div>
+                        <div class="leaderboard-score">520</div>
+                    </div>
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-rank">3</div>
+                        <div class="leaderboard-username">DemoUser</div>
+                        <div class="leaderboard-score">320</div>
+                    </div>
+                `;
+            }
+            
+            // Add prediction form handling
+            const predictionForm = document.getElementById('prediction-form');
+            if (predictionForm) {
+                predictionForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    
+                    const platform = document.getElementById('platform').value;
+                    const account = document.getElementById('account').value.trim();
+                    const metric = document.getElementById('metric').value;
+                    const value = parseInt(document.getElementById('prediction-value').value);
+                    const deadline = document.getElementById('deadline').value;
+                    
+                    if (!account || isNaN(value) || value <= 0 || !deadline) {
+                        alert('Please fill in all fields correctly.');
+                        return;
+                    }
+                    
+                    // Create a dummy prediction
+                    const username = usernameInput ? usernameInput.value.trim() : 'You';
+                    
+                    const newPrediction = document.createElement('div');
+                    newPrediction.className = 'prediction-card';
+                    
+                    // Format deadline
+                    const deadlineDate = new Date(deadline);
+                    const formattedDeadline = deadlineDate.toLocaleString();
+                    
+                    // Format platform class
+                    const platformClass = `platform-${platform}`;
+                    
+                    // Build card HTML
+                    newPrediction.innerHTML = `
+                        <div class="prediction-header">
+                            <span class="prediction-user">${username || 'You'}</span>
+                            <span class="prediction-platform ${platformClass}">${platform}</span>
+                        </div>
+                        <div class="prediction-details">
+                            <p>
+                                <span class="prediction-target">@${account}</span> will have 
+                                <strong>${value.toLocaleString()}</strong> 
+                                ${metric} by ${formattedDeadline}
+                            </p>
+                        </div>
+                        <div class="prediction-footer">
+                            <span class="prediction-deadline">Resolves in: Soon</span>
+                            <span class="prediction-status status-pending">Pending</span>
+                        </div>
+                        <div class="prediction-actions">
+                            <div class="farcaster-shares">
+                                <div class="icon"></div>
+                                <span>0 shares</span>
+                            </div>
+                            <button class="share-prediction-button farcaster-button">
+                                <div class="icon"></div>
+                                Share
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Insert at the top of the list
+                    if (predictionsList.firstChild) {
+                        predictionsList.insertBefore(newPrediction, predictionsList.firstChild);
+                    } else {
+                        predictionsList.appendChild(newPrediction);
+                    }
+                    
+                    // Reset form
+                    document.getElementById('account').value = '';
+                    document.getElementById('prediction-value').value = '';
+                    
+                    // Add flying animation
+                    addFlyingSprite(e.clientX, e.clientY);
+                });
+            }
+            
+            // Simple chat functionality
+            const chatInput = document.getElementById('chat-message');
+            const sendButton = document.getElementById('send-message');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            if (chatInput && sendButton && chatMessages) {
+                // Welcome message
+                const welcomeMessage = document.createElement('div');
+                welcomeMessage.className = 'chat-message system-message';
+                welcomeMessage.innerHTML = `
+                    <div class="system-message-content">
+                        <div class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div class="message-text">Welcome to ForeCastr Chat! (Offline Mode)</div>
+                    </div>
+                `;
+                chatMessages.appendChild(welcomeMessage);
+                
+                // Send message function
+                const sendChatMessage = () => {
+                    const message = chatInput.value.trim();
+                    if (!message) return;
+                    
+                    const username = usernameInput ? usernameInput.value.trim() : 'You';
+                    
+                    const messageEl = document.createElement('div');
+                    messageEl.className = 'chat-message my-message';
+                    
+                    // Format timestamp
+                    const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    // Build message HTML
+                    messageEl.innerHTML = `
+                        <div class="message-header">
+                            <span class="message-username">${username || 'You'}</span>
+                            <span class="message-time">${formattedTime}</span>
+                        </div>
+                        <div class="message-body">${message}</div>
+                    `;
+                    
+                    chatMessages.appendChild(messageEl);
+                    
+                    // Auto-response after a delay
+                    setTimeout(() => {
+                        const responseEl = document.createElement('div');
+                        responseEl.className = 'chat-message';
+                        
+                        // Build response HTML
+                        responseEl.innerHTML = `
+                            <div class="message-header">
+                                <span class="message-username">ForeCastr AI</span>
+                                <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div class="message-body">The network is currently in offline mode. Your predictions are being stored locally.</div>
+                        `;
+                        
+                        chatMessages.appendChild(responseEl);
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }, 1000);
+                    
+                    // Reset input and scroll chat
+                    chatInput.value = '';
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                };
+                
+                // Set up event handlers
+                sendButton.addEventListener('click', sendChatMessage);
+                chatInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendChatMessage();
+                    }
+                });
+            }
+            
+            // Show the main content
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block';
+            document.getElementById('fallback-content').style.display = 'none';
+            initializeAnimations();
+        }
+        
+        // Add flying sprite animation
+        function addFlyingSprite(x, y) {
+            // Create the sprite element
+            const sprite = document.createElement('div');
+            sprite.className = 'flying-sprite';
+            
+            // Set sprite style
+            sprite.style.position = 'fixed';
+            sprite.style.width = '30px';
+            sprite.style.height = '30px';
+            sprite.style.borderRadius = '50%';
+            sprite.style.backgroundColor = '#9d4edd';
+            sprite.style.boxShadow = '0 0 10px #e0aaff';
+            
+            // Set initial position
+            sprite.style.left = `${x}px`;
+            sprite.style.top = `${y}px`;
+            
+            // Add to DOM
+            document.body.appendChild(sprite);
+            
+            // Animate sprite
+            let opacity = 1;
+            let posX = x;
+            let posY = y;
+            let speedX = (Math.random() - 0.5) * 5;
+            let speedY = -3 - Math.random() * 2;
+            
+            const animateSprite = () => {
+                posX += speedX;
+                posY += speedY;
+                speedY += 0.1; // Gravity
+                opacity -= 0.01;
+                
+                sprite.style.left = `${posX}px`;
+                sprite.style.top = `${posY}px`;
+                sprite.style.opacity = opacity;
+                
+                if (opacity > 0) {
+                    requestAnimationFrame(animateSprite);
+                } else {
+                    sprite.remove();
+                }
+            };
+            
+            requestAnimationFrame(animateSprite);
+        }
+        
+        // Initialize animations and background elements
+        function initializeAnimations() {
+            // Add flying animations for interactions
+            initParticleSystem();
+        }
+        
+        // Initialize a particle system for interactive elements
+        function initParticleSystem() {
+            // Track mouse position
+            let mouseX = 0;
+            let mouseY = 0;
+            
+            document.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                
+                // Occasionally spawn particles while moving
+                if (Math.random() < 0.1) {
+                    createParticle(mouseX, mouseY);
+                }
+            });
+            
+            // Create particle on click
+            document.addEventListener('click', (e) => {
+                // Create multiple particles in a burst
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        createParticle(e.clientX, e.clientY);
+                    }, i * 30);
+                }
+            });
+        }
+        
+        // Create a single particle
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            
+            // Randomize appearance
+            const size = 5 + Math.random() * 15;
+            const hue = 270 + Math.random() * 60; // Purple hues (270-330)
+            const opacity = 0.5 + Math.random() * 0.5;
+            
+            // Set styles
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            particle.style.backgroundColor = `hsla(${hue}, 70%, 60%, ${opacity})`;
+            particle.style.position = 'fixed';
+            particle.style.borderRadius = '50%';
+            particle.style.pointerEvents = 'none';
+            particle.style.zIndex = '1000';
+            
+            // Add to DOM
+            document.body.appendChild(particle);
+            
+            // Animate the particle
+            let posX = x;
+            let posY = y;
+            let velocityX = (Math.random() - 0.5) * 4;
+            let velocityY = (Math.random() - 0.5) * 4;
+            let opacity = 1;
+            let size = 5 + Math.random() * 15;
+            
+            const animate = () => {
+                // Update position
+                posX += velocityX;
+                posY += velocityY;
+                
+                // Apply gravity and friction
+                velocityY += 0.05;
+                velocityX *= 0.99;
+                velocityY *= 0.99;
+                
+                // Fade out and shrink
+                opacity -= 0.01;
+                size *= 0.99;
+                
+                // Update styles
+                particle.style.left = `${posX}px`;
+                particle.style.top = `${posY}px`;
+                particle.style.opacity = opacity.toString();
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // Continue animation or remove
+                if (opacity > 0) {
+                    requestAnimationFrame(animate);
+                } else {
+                    particle.remove();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        }
+
+        // ======= MODEL CLASSES =======
+
+        /**
+         * Main application model
+         * Handles synchronization of all predictions, users, and chat messages
+         */
+        class SocialPredictionApp extends Multisynq.Model {
+            init(_, persisted) {
+                try {
+                    logDebug('Initializing SocialPredictionApp model');
+                    
+                    // Initialize from persisted data or create fresh state
+                    this.predictions = persisted?.predictions || [];
+                    this.users = new Map(); // Active users
+                    this.leaderboard = persisted?.leaderboard || {};
+                    this.messages = persisted?.messages || [];
+                    
+                    // Create public chat channel
+                    this.chatChannel = "global-chat";
+                    
+                    // Subscribe to session events for user management
+                    this.subscribe(this.sessionId, "view-join", this.viewJoined);
+                    this.subscribe(this.sessionId, "view-exit", this.viewExited);
+                    
+                    // Generate random floaters to create a Ghibli-like animated background effect
+                    this.floaters = [];
+                    for (let i = 0; i < 10; i++) {
+                        this.floaters.push({
+                            x: Math.random() * 1000,
+                            y: Math.random() * 1000,
+                            dx: (Math.random() - 0.5) * 2,
+                            dy: (Math.random() - 0.5) * 2,
+                            size: 10 + Math.random() * 20,
+                            type: Math.floor(Math.random() * 3) // 0: dust sprite, 1: leaf, 2: spirit
+                        });
+                    }
+                    
+                    // Start main loop
+                    this.mainLoop();
+                    
+                    logDebug('SocialPredictionApp model initialized successfully');
+                } catch (error) {
+                    logDebug('Error initializing SocialPredictionApp model', error);
+                    throw error; // Re-throw to let the error handler deal with it
+                }
+            }
+            
+            // Handle new view (user) joining
+            viewJoined(viewId) {
+                try {
+                    logDebug(`View joined: ${viewId}`);
+                    const user = User.create({ viewId });
+                    this.users.set(viewId, user);
+                    this.publishMessage("system", `A new forecaster has entered!`);
+                } catch (error) {
+                    logDebug(`Error handling view join: ${error.message}`);
+                }
+            }
+            
+            // Handle view (user) leaving
+            viewExited(viewId) {
+                try {
+                    const user = this.users.get(viewId);
+                    if (user) {
+                        this.publishMessage("system", `${user.username || 'A forecaster'} has left.`);
+                        this.users.delete(viewId);
+                        user.destroy();
+                    }
+                } catch (error) {
+                    logDebug(`Error handling view exit: ${error.message}`);
+                }
+            }
+            
+            // Create a new prediction
+            createPrediction(viewId, data) {
+                try {
+                    const user = this.users.get(viewId);
+                    if (!user) return;
+                    
+                    // Create a unique ID for the prediction
+                    const predictionId = `pred_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+                    
+                    // Create the prediction
+                    const prediction = {
+                        id: predictionId,
+                        userId: viewId,
+                        username: user.username,
+                        platform: data.platform,
+                        account: data.account,
+                        metric: data.metric,
+                        targetValue: data.value,
+                        deadline: data.deadline,
+                        createdAt: Date.now(),
+                        status: 'pending', // pending, correct, incorrect
+                        verified: false    // whether the prediction has been verified
+                    };
+                    
+                    // Add to predictions list
+                    this.predictions.push(prediction);
+                    
+                    // Persist the updated state
+                    this.persistSession({
+                        predictions: this.predictions,
+                        leaderboard: this.leaderboard,
+                        messages: this.messages
+                    });
+                    
+                    // Send a notification to the chat
+                    this.publishMessage("system", `${user.username} has made a new prediction about ${data.account}!`);
+                    
+                    return predictionId;
+                } catch (error) {
+                    logDebug(`Error creating prediction: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            // Verify a prediction (would be done by an admin or automatically)
+            verifyPrediction(predictionId, actualValue) {
+                try {
+                    const prediction = this.predictions.find(p => p.id === predictionId);
+                    if (!prediction) return;
+                    
+                    prediction.verified = true;
+                    prediction.actualValue = actualValue;
+                    prediction.verifiedAt = Date.now();
+                    
+                    // Determine if the prediction was correct
+                    if (prediction.metric === 'followers' || prediction.metric === 'views') {
+                        // For followers/views, prediction is correct if actual is >= target
+                        prediction.status = actualValue >= prediction.targetValue ? 'correct' : 'incorrect';
+                    } else {
+                        // For likes, prediction is correct if within 5% of target
+                        const percentageDiff = Math.abs((actualValue - prediction.targetValue) / prediction.targetValue);
+                        prediction.status = percentageDiff <= 0.05 ? 'correct' : 'incorrect';
+                    }
+                    
+                    // Award points if correct
+                    if (prediction.status === 'correct') {
+                        const user = this.users.get(prediction.userId);
+                        if (user) {
+                            user.addPoints(100);
+                            this.updateLeaderboard(prediction.userId, user.username, user.points);
+                        }
+                    }
+                    
+                    // Persist the updated state
+                    this.persistSession({
+                        predictions: this.predictions,
+                        leaderboard: this.leaderboard,
+                        messages: this.messages
+                    });
+                    
+                    // Send a notification to the chat
+                    const resultMessage = prediction.status === 'correct' 
+                        ? `${prediction.username}'s prediction about ${prediction.account} was correct!` 
+                        : `${prediction.username}'s prediction about ${prediction.account} was incorrect.`;
+                    this.publishMessage("system", resultMessage);
+                } catch (error) {
+                    logDebug(`Error verifying prediction: ${error.message}`);
+                }
+            }
+            
+            // Update the leaderboard with new points
+            updateLeaderboard(userId, username, points) {
+                try {
+                    this.leaderboard[userId] = {
+                        username,
+                        points
+                    };
+                    
+                    // Persist the updated state
+                    this.persistSession({
+                        predictions: this.predictions,
+                        leaderboard: this.leaderboard,
+                        messages: this.messages
+                    });
+                } catch (error) {
+                    logDebug(`Error updating leaderboard: ${error.message}`);
+                }
+            }
+            
+            // Add a message to the chat
+            publishMessage(sender, text) {
+                try {
+                    const message = {
+                        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                        sender,
+                        text,
+                        timestamp: Date.now()
+                    };
+                    
+                    this.messages.push(message);
+                    
+                    // Keep only the last 100 messages
+                    if (this.messages.length > 100) {
+                        this.messages = this.messages.slice(-100);
+                    }
+                    
+                    // Persist the updated state
+                    this.persistSession({
+                        predictions: this.predictions,
+                        leaderboard: this.leaderboard,
+                        messages: this.messages
+                    });
+                    
+                    return message;
+                } catch (error) {
+                    logDebug(`Error publishing message: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            // Move floating background elements
+            updateFloaters() {
+                for (const floater of this.floaters) {
+                    floater.x = (floater.x + floater.dx + 1000) % 1000;
+                    floater.y = (floater.y + floater.dy + 1000) % 1000;
+                    
+                    // Occasionally change direction
+                    if (Math.random() < 0.05) {
+                        floater.dx = (Math.random() - 0.5) * 2;
+                        floater.dy = (Math.random() - 0.5) * 2;
+                    }
+                }
+            }
+            
+            // Check for expired predictions and verify them
+            checkPredictions() {
+                try {
+                    const now = Date.now();
+                    for (const prediction of this.predictions) {
+                        if (prediction.status === 'pending' && !prediction.verified && new Date(prediction.deadline).getTime() <= now) {
+                            // This would typically call an API to get the actual value
+                            // For demo purposes, we'll generate a random result
+                            const isCorrect = Math.random() > 0.5;
+                            let actualValue;
+                            
+                            if (isCorrect) {
+                                // Generate a value that would make the prediction correct
+                                actualValue = prediction.metric === 'likes' 
+                                    ? prediction.targetValue * (0.95 + Math.random() * 0.1) // within 5%
+                                    : prediction.targetValue * (1 + Math.random() * 0.2);   // above target
+                            } else {
+                                // Generate a value that would make the prediction incorrect
+                                actualValue = prediction.metric === 'likes'
+                                    ? prediction.targetValue * (0.85 + Math.random() * 0.05) // outside 5%
+                                    : prediction.targetValue * (0.7 + Math.random() * 0.2);  // below target
+                            }
+                            
+                            this.verifyPrediction(prediction.id, Math.floor(actualValue));
+                        }
+                    }
+                } catch (error) {
+                    logDebug(`Error checking predictions: ${error.message}`);
+                }
+            }
+            
+            // Main loop to update game state
+            mainLoop() {
+                try {
+                    this.updateFloaters();
+                    this.checkPredictions();
+                    this.future(100).mainLoop();
+                } catch (error) {
+                    logDebug(`Error in main loop: ${error.message}`);
+                    
+                    // Try to recover by restarting main loop
+                    setTimeout(() => {
+                        try {
+                            this.mainLoop();
+                        } catch (error) {
+                            logDebug(`Failed to restart main loop: ${error.message}`);
+                        }
+                    }, 1000);
+                }
+            }
+        }
+
+        /**
+         * User model
+         * Represents a single user/player in the application
+         */
+        class User extends Multisynq.Model {
+            init({ viewId }) {
+                try {
+                    logDebug(`Initializing User model for viewId: ${viewId}`);
+                    
+                    this.viewId = viewId;
+                    this.username = `Forecaster${Math.floor(Math.random() * 1000)}`;
+                    this.points = 0;
+                    this.predictions = [];
+                    this.joinedAt = Date.now();
+                    this.lastActive = Date.now();
+                    this.isTyping = false;
+                    
+                    // Subscribe to user-specific events
+                    this.subscribe(viewId, "set-username", this.setUsername);
+                    this.subscribe(viewId, "create-prediction", this.createPrediction);
+                    this.subscribe(viewId, "send-message", this.sendMessage);
+                    this.subscribe(viewId, "typing-status", this.updateTypingStatus);
+                } catch (error) {
+                    logDebug(`Error initializing User model: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            get app() {
+                return this.wellKnownModel("modelRoot");
+            }
+            
+            // Update username
+            setUsername(username) {
+                try {
+                    if (!username || username.trim() === '') return;
+                    
+                    // Ensure username is unique
+                    for (const user of this.app.users.values()) {
+                        if (user !== this && user.username === username) {
+                            return false;
+                        }
+                    }
+                    
+                    const oldUsername = this.username;
+                    this.username = username;
+                    
+                    // Update leaderboard entry if exists
+                    if (this.app.leaderboard[this.viewId]) {
+                        this.app.leaderboard[this.viewId].username = username;
+                        
+                        // Persist the updated state
+                        this.app.persistSession({
+                            predictions: this.app.predictions,
+                            leaderboard: this.app.leaderboard,
+                            messages: this.app.messages
+                        });
+                    }
+                    
+                    // Update username in predictions
+                    for (const prediction of this.app.predictions) {
+                        if (prediction.userId === this.viewId) {
+                            prediction.username = username;
+                        }
+                    }
+                    
+                    // Notify chat of name change
+                    if (oldUsername !== username) {
+                        this.app.publishMessage("system", `${oldUsername} is now known as ${username}`);
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    logDebug(`Error setting username: ${error.message}`);
+                    return false;
+                }
+            }
+            
+            // Create a new prediction
+            createPrediction(predictionData) {
+                try {
+                    this.lastActive = Date.now();
+                    return this.app.createPrediction(this.viewId, predictionData);
+                } catch (error) {
+                    logDebug(`Error creating prediction: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            // Send a chat message
+            sendMessage(text) {
+                try {
+                    if (!text || text.trim() === '') return;
+                    
+                    this.lastActive = Date.now();
+                    this.isTyping = false;
+                    
+                    return this.app.publishMessage(this.username, text);
+                } catch (error) {
+                    logDebug(`Error sending message: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            // Update typing status
+            updateTypingStatus(isTyping) {
+                this.isTyping = isTyping;
+            }
+            
+            // Add points to user's score
+            addPoints(points) {
+                try {
+                    this.points += points;
+                    
+                    // Update leaderboard
+                    this.app.updateLeaderboard(this.viewId, this.username, this.points);
+                    
+                    return this.points;
+                } catch (error) {
+                    logDebug(`Error adding points: ${error.message}`);
+                    return this.points;
+                }
+            }
+        }
+
+        /**
+         * Main application view
+         * Handles UI rendering and user interactions
+         */
+        class AppView extends Multisynq.View {
+            init() {
+                try {
+                    logDebug('Initializing AppView');
+                    
+                    // Store references to DOM elements
+                    this.elements = {
+                        usernameInput: document.getElementById('username'),
+                        leaderboardList: document.getElementById('leaderboard-list'),
+                        predictionForm: document.getElementById('prediction-form'),
+                        predictionsList: document.getElementById('predictions-list'),
+                        chatMessages: document.getElementById('chat-messages'),
+                        chatInput: document.getElementById('chat-message'),
+                        sendButton: document.getElementById('send-message'),
+                        sessionUrl: document.getElementById('session-url'),
+                        
+                        // Farcaster elements
+                        connectFarcaster: document.getElementById('connect-farcaster'),
+                        farcasterProfile: document.getElementById('farcaster-profile'),
+                        farcasterAvatar: document.getElementById('farcaster-avatar'),
+                        farcasterUsername: document.getElementById('farcaster-username'),
+                        farcasterFid: document.getElementById('farcaster-fid'),
+                        shareFarcaster: document.getElementById('share-to-farcaster'),
+                        miniAppBanner: document.getElementById('farcaster-mini-app-banner'),
+                        addToFarcaster: document.getElementById('add-to-farcaster')
+                    };
+                    
+                    // Set session URL display
+                    if (this.elements.sessionUrl) {
+                        this.elements.sessionUrl.textContent = window.location.href;
+                    }
+                    
+                    // Load saved username from localStorage if available
+                    const savedUsername = localStorage.getItem('io.multisynq.forecastr.username');
+                    if (savedUsername && this.elements.usernameInput) {
+                        this.elements.usernameInput.value = savedUsername;
+                        this.publish(this.viewId, "set-username", savedUsername);
+                    }
+                    
+                    // Set up event handlers
+                    this.setupEventHandlers();
+                    
+                    // Initial render
+                    this.renderLeaderboard();
+                    this.renderPredictions();
+                    this.renderChat();
+                    
+                    // Set update interval for smooth rendering
+                    this.updateInterval = setInterval(() => this.update(), 50);
+                    
+                    // Initialize Farcaster integration
+                    this.initializeFarcaster();
+                    
+                    logDebug('AppView initialized successfully');
+                } catch (error) {
+                    logDebug('Error initializing AppView', error);
+                    throw error;
+                }
+            }
+            
+            // Initialize Farcaster integration
+            async initializeFarcaster() {
+                try {
+                    // Create farcaster integration
+                    this.farcaster = new FarcasterIntegration();
+                    
+                    // Initialize Farcaster
+                    await this.farcaster.initialize();
+                    
+                    // Check if running in Farcaster context
+                    if (this.farcaster.isInFarcasterContext()) {
+                        this.showFarcasterContextUI();
+                    }
+                    
+                    // Get user if already authenticated
+                    const user = this.farcaster.getUser();
+                    if (user) {
+                        this.showFarcasterUser(user);
+                    }
+                } catch (error) {
+                    logDebug("Failed to initialize Farcaster", error);
+                    // Disable Farcaster features
+                    this.disableFarcasterFeatures();
+                }
+            }
+            
+            // Show UI elements specific to Farcaster context
+            showFarcasterContextUI() {
+                // Show Mini App banner
+                if (this.elements.miniAppBanner) {
+                    this.elements.miniAppBanner.style.display = 'flex';
+                }
+                
+                // Add Farcaster context badge
+                const badge = document.createElement('div');
+                badge.className = 'farcaster-context-badge';
+                badge.innerHTML = '<div class="icon"></div>Farcaster Mini App';
+                document.body.appendChild(badge);
+            }
+            
+            // Show authenticated Farcaster user profile
+            showFarcasterUser(user) {
+                if (!this.elements.farcasterProfile) return;
+                
+                // Hide username input and show Farcaster profile
+                this.elements.usernameInput.style.display = 'none';
+                this.elements.farcasterProfile.style.display = 'flex';
+                
+                // Set user info
+                this.elements.farcasterUsername.textContent = user.displayName || user.username || 'Farcaster User';
+                this.elements.farcasterFid.textContent = `FID: ${user.fid}`;
+                
+                // Set avatar if available
+                if (user.pfp) {
+                    this.elements.farcasterAvatar.style.backgroundImage = `url(${user.pfp})`;
+                }
+                
+                // Update connect button
+                this.elements.connectFarcaster.textContent = 'Connected to Farcaster';
+                this.elements.connectFarcaster.disabled = true;
+                
+                // Set username in the app
+                if (user.displayName || user.username) {
+                    this.publish(this.viewId, "set-username", user.displayName || user.username);
+                }
+            }
+            
+            // Disable Farcaster features if initialization fails
+            disableFarcasterFeatures() {
+                // Hide Farcaster buttons
+                if (this.elements.connectFarcaster) {
+                    this.elements.connectFarcaster.style.display = 'none';
+                }
+                
+                if (this.elements.shareFarcaster) {
+                    this.elements.shareFarcaster.style.display = 'none';
+                }
+                
+                if (this.elements.miniAppBanner) {
+                    this.elements.miniAppBanner.style.display = 'none';
+                }
+            }
+            
+            // Set up UI event handlers
+            setupEventHandlers() {
+                try {
+                    // Username input
+                    if (this.elements.usernameInput) {
+                        this.elements.usernameInput.addEventListener('change', () => {
+                            const username = this.elements.usernameInput.value.trim();
+                            if (username) {
+                                localStorage.setItem('io.multisynq.forecastr.username', username);
+                                this.publish(this.viewId, "set-username", username);
+                            }
+                        });
+                    }
+                    
+                    // Prediction form
+                    if (this.elements.predictionForm) {
+                        this.elements.predictionForm.addEventListener('submit', (e) => {
+                            e.preventDefault();
+                            
+                            const platform = document.getElementById('platform').value;
+                            const account = document.getElementById('account').value.trim();
+                            const metric = document.getElementById('metric').value;
+                            const value = parseInt(document.getElementById('prediction-value').value);
+                            const deadline = document.getElementById('deadline').value;
+                            
+                            if (!account || isNaN(value) || value <= 0 || !deadline) {
+                                alert('Please fill in all fields correctly.');
+                                return;
+                            }
+                            
+                            // Store current prediction for sharing
+                            this.currentPrediction = {
+                                platform,
+                                account,
+                                metric,
+                                value,
+                                deadline
+                            };
+                            
+                            // Create the prediction
+                            this.publish(this.viewId, "create-prediction", this.currentPrediction);
+                            
+                            // Reset form
+                            document.getElementById('account').value = '';
+                            document.getElementById('prediction-value').value = '';
+                            
+                            // Add flying animation
+                            this.addFlyingSprite(e.clientX, e.clientY);
+                        });
+                    }
+                    
+                    // Chat input
+                    if (this.elements.chatInput) {
+                        this.elements.chatInput.addEventListener('keypress', (e) => {
+                            // Update typing status
+                            this.publish(this.viewId, "typing-status", true);
+                            
+                            // Send message on Enter
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                this.sendChatMessage();
+                            }
+                        });
+                        
+                        // Stop typing when input is blurred
+                        this.elements.chatInput.addEventListener('blur', () => {
+                            this.publish(this.viewId, "typing-status", false);
+                        });
+                    }
+                    
+                    // Send button
+                    if (this.elements.sendButton) {
+                        this.elements.sendButton.addEventListener('click', () => {
+                            this.sendChatMessage();
+                        });
+                    }
+                    
+                    // Farcaster connect button
+                    if (this.elements.connectFarcaster) {
+                        this.elements.connectFarcaster.addEventListener('click', async () => {
+                            if (!this.farcaster) return;
+                            
+                            try {
+                                const user = await this.farcaster.authenticate();
+                                if (user) {
+                                    this.showFarcasterUser(user);
+                                }
+                            } catch (error) {
+                                console.error("Failed to authenticate with Farcaster:", error);
+                            }
+                        });
+                    }
+                    
+                    // Share to Farcaster button
+                    if (this.elements.shareFarcaster) {
+                        this.elements.shareFarcaster.addEventListener('click', async () => {
+                            if (!this.farcaster || !this.currentPrediction) return;
+                            
+                            try {
+                                const result = await this.farcaster.sharePrediction(this.currentPrediction);
+                                if (result) {
+                                    // Show success animation
+                                    this.elements.shareFarcaster.classList.add('pop-animation');
+                                    setTimeout(() => {
+                                        this.elements.shareFarcaster.classList.remove('pop-animation');
+                                    }, 300);
+                                }
+                            } catch (error) {
+                                console.error("Failed to share prediction:", error);
+                            }
+                        });
+                    }
+                    
+                    // Add to Farcaster button
+                    if (this.elements.addToFarcaster) {
+                        this.elements.addToFarcaster.addEventListener('click', async () => {
+                            if (!this.farcaster) return;
+                            
+                            try {
+                                const result = await this.farcaster.requestAddApp();
+                                if (result) {
+                                    // Hide the banner after successful add
+                                    this.elements.miniAppBanner.style.display = 'none';
+                                }
+                            } catch (error) {
+                                console.error("Failed to add app to Farcaster:", error);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    logDebug('Error setting up event handlers', error);
+                }
+            }
+            
+            // Send a chat message
+            sendChatMessage() {
+                if (!this.elements.chatInput) return;
+                
+                const message = this.elements.chatInput.value.trim();
+                if (message) {
+                    this.publish(this.viewId, "send-message", message);
+                    this.elements.chatInput.value = '';
+                    this.publish(this.viewId, "typing-status", false);
+                }
+            }
+            
+            // Format a timestamp
+            formatTime(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            
+            // Format a date
+            formatDate(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleDateString();
+            }
+            
+            // Render the leaderboard
+            renderLeaderboard() {
+                if (!this.elements.leaderboardList) return;
+                
+                try {
+                    // Get sorted leaderboard data
+                    const leaderboardEntries = Object.entries(this.model.leaderboard)
+                        .map(([userId, data]) => ({
+                            userId,
+                            username: data.username,
+                            points: data.points
+                        }))
+                        .sort((a, b) => b.points - a.points);
+                    
+                    // Clear current list
+                    this.elements.leaderboardList.innerHTML = '';
+                    
+                    // Render each entry
+                    leaderboardEntries.forEach((entry, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'leaderboard-item';
+                        
+                        // Highlight current user
+                        if (entry.userId === this.viewId) {
+                            item.classList.add('current-user');
+                        }
+                        
+                        item.innerHTML = `
+                            <div class="leaderboard-rank">${index + 1}</div>
+                            <div class="leaderboard-username">${entry.username}</div>
+                            <div class="leaderboard-score">${entry.points}</div>
+                        `;
+                        
+                        this.elements.leaderboardList.appendChild(item);
+                    });
+                    
+                    // Add empty state if no entries
+                    if (leaderboardEntries.length === 0) {
+                        const emptyState = document.createElement('div');
+                        emptyState.className = 'empty-state';
+                        emptyState.textContent = 'Make predictions to appear on the leaderboard!';
+                        this.elements.leaderboardList.appendChild(emptyState);
+                    }
+                } catch (error) {
+                    logDebug('Error rendering leaderboard', error);
+                }
+            }
+            
+            // Render predictions
+            renderPredictions() {
+                if (!this.elements.predictionsList) return;
+                
+                try {
+                    // Sort predictions by deadline (soonest first)
+                    const sortedPredictions = [...this.model.predictions]
+                        .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+                    
+                    // Clear current list
+                    this.elements.predictionsList.innerHTML = '';
+                    
+                    // Render each prediction
+                    sortedPredictions.forEach(prediction => {
+                        const card = document.createElement('div');
+                        card.className = 'prediction-card';
+                        card.dataset.id = prediction.id;
+                        
+                        // Add status class
+                        if (prediction.status !== 'pending') {
+                            card.classList.add(`status-${prediction.status}`);
+                        }
+                        
+                        // Format deadline
+                        const deadline = new Date(prediction.deadline);
+                        const formattedDeadline = deadline.toLocaleString();
+                        
+                        // Format platform class
+                        const platformClass = `platform-${prediction.platform}`;
+                        
+                        // Build card HTML
+                        card.innerHTML = `
+                            <div class="prediction-header">
+                                <span class="prediction-user">${prediction.username}</span>
+                                <span class="prediction-platform ${platformClass}">${prediction.platform}</span>
+                            </div>
+                            <div class="prediction-details">
+                                <p>
+                                    <span class="prediction-target">@${prediction.account}</span> will have 
+                                    <strong>${prediction.targetValue.toLocaleString()}</strong> 
+                                    ${prediction.metric} by ${formattedDeadline}
+                                </p>
+                                ${prediction.actualValue ? `
+                                    <p class="prediction-result">
+                                        Actual: <strong>${prediction.actualValue.toLocaleString()}</strong>
+                                    </p>
+                                ` : ''}
+                            </div>
+                            <div class="prediction-footer">
+                                <span class="prediction-deadline">
+                                    ${prediction.status === 'pending' 
+                                        ? `Resolves in: ${this.getTimeRemaining(deadline)}` 
+                                        : `Resolved: ${this.formatTime(prediction.verifiedAt || deadline)}`}
+                                </span>
+                                <span class="prediction-status status-${prediction.status}">
+                                    ${prediction.status === 'pending' ? 'Pending' : 
+                                    prediction.status === 'correct' ? 'Correct! ✓' : 'Incorrect ✗'}
+                                </span>
+                            </div>
+                            <div class="prediction-actions">
+                                <div class="farcaster-shares">
+                                    <div class="icon"></div>
+                                    <span>${Math.floor(Math.random() * 10)} shares</span>
+                                </div>
+                                <button class="share-prediction-button farcaster-button" data-id="${prediction.id}">
+                                    <div class="icon"></div>
+                                    Share
+                                </button>
+                            </div>
+                        `;
+                        
+                        this.elements.predictionsList.appendChild(card);
+                        
+                        // Add event listener to share button
+                        const shareButton = card.querySelector('.share-prediction-button');
+                        if (shareButton && this.farcaster) {
+                            shareButton.addEventListener('click', async () => {
+                                if (!this.farcaster) return;
+                                
+                                try {
+                                    const result = await this.farcaster.sharePrediction(prediction);
+                                    if (result) {
+                                        // Show success animation
+                                        shareButton.classList.add('pop-animation');
+                                        setTimeout(() => {
+                                            shareButton.classList.remove('pop-animation');
+                                        }, 300);
+                                        
+                                        // Update share count (in a real app this would be tracked)
+                                        const sharesElement = card.querySelector('.farcaster-shares span');
+                                        if (sharesElement) {
+                                            const currentShares = parseInt(sharesElement.textContent);
+                                            sharesElement.textContent = `${currentShares + 1} shares`;
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.error("Failed to share prediction:", error);
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Add empty state if no predictions
+                    if (sortedPredictions.length === 0) {
+                        const emptyState = document.createElement('div');
+                        emptyState.className = 'empty-state';
+                        emptyState.textContent = 'No predictions yet. Be the first to predict!';
+                        this.elements.predictionsList.appendChild(emptyState);
+                    }
+                } catch (error) {
+                    logDebug('Error rendering predictions', error);
+                }
+            }
+            
+            // Render chat messages
+            renderChat() {
+                if (!this.elements.chatMessages) return;
+                
+                try {
+                    // Get chat messages
+                    const messages = this.model.messages || [];
+                    
+                    // Clear current messages
+                    this.elements.chatMessages.innerHTML = '';
+                    
+                    // Render each message
+                    messages.forEach(message => {
+                        const messageEl = document.createElement('div');
+                        messageEl.className = 'chat-message';
+                        
+                        // Add special classes
+                        if (message.sender === 'system') {
+                            messageEl.classList.add('system-message');
+                        } else if (message.userId === this.viewId) {
+                            messageEl.classList.add('my-message');
+                        }
+                        
+                        // Format timestamp
+                        const formattedTime = this.formatTime(message.timestamp);
+                        
+                        // Build message HTML
+                        if (message.sender === 'system') {
+                            messageEl.innerHTML = `
+                                <div class="system-message-content">
+                                    <div class="message-time">${formattedTime}</div>
+                                    <div class="message-text">${message.text}</div>
+                                </div>
+                            `;
+                        } else {
+                            messageEl.innerHTML = `
+                                <div class="message-header">
+                                    <span class="message-username">${message.sender}</span>
+                                    <span class="message-time">${formattedTime}</span>
+                                </div>
+                                <div class="message-body">${message.text}</div>
+                            `;
+                        }
+                        
+                        this.elements.chatMessages.appendChild(messageEl);
+                    });
+                    
+                    // Scroll to bottom
+                    this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+                } catch (error) {
+                    logDebug('Error rendering chat', error);
+                }
+            }
+            
+            // Calculate time remaining for a deadline
+            getTimeRemaining(deadline) {
+                const now = new Date();
+                const diff = deadline - now;
+                
+                if (diff <= 0) return 'Now';
+                
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (days > 0) {
+                    return `${days}d ${hours}h`;
+                } else if (hours > 0) {
+                    return `${hours}h ${minutes}m`;
+                } else {
+                    return `${minutes}m`;
+                }
+            }
+            
+            // Add a flying sprite animation
+            addFlyingSprite(x, y) {
+                // Create the sprite element
+                const sprite = document.createElement('div');
+                sprite.className = 'flying-sprite';
+                
+                // Set sprite style
+                sprite.style.position = 'fixed';
+                sprite.style.width = '30px';
+                sprite.style.height = '30px';
+                sprite.style.borderRadius = '50%';
+                sprite.style.backgroundColor = '#9d4edd';
+                sprite.style.boxShadow = '0 0 10px #e0aaff';
+                
+                // Set initial position
+                sprite.style.left = `${x}px`;
+                sprite.style.top = `${y}px`;
+                
+                // Add to DOM
+                document.body.appendChild(sprite);
+                
+                // Animate sprite
+                let opacity = 1;
+                let posX = x;
+                let posY = y;
+                let speedX = (Math.random() - 0.5) * 5;
+                let speedY = -3 - Math.random() * 2;
+                
+                const animateSprite = () => {
+                    posX += speedX;
+                    posY += speedY;
+                    speedY += 0.1; // Gravity
+                    opacity -= 0.01;
+                    
+                    sprite.style.left = `${posX}px`;
+                    sprite.style.top = `${posY}px`;
+                    sprite.style.opacity = opacity;
+                    
+                    if (opacity > 0) {
+                        requestAnimationFrame(animateSprite);
+                    } else {
+                        sprite.remove();
+                    }
+                };
+                
+                requestAnimationFrame(animateSprite);
+            }
+            
+            // Main update loop
+            update() {
+                try {
+                    // Update UI elements
+                    this.renderLeaderboard();
+                    this.renderPredictions();
+                    this.renderChat();
+                } catch (error) {
+                    logDebug('Error in update loop', error);
+                }
+            }
+        }
+
+        // ======= FARCASTER INTEGRATION =======
+
+        /**
+         * Farcaster Integration Module
+         * Handles the integration with Farcaster Mini Apps
+         */
+        class FarcasterIntegration {
+            constructor() {
+                this.initialized = false;
+                this.user = null;
+                
+                // Add required metadata for Farcaster in the HTML head
+                this.addMetaTags();
+            }
+            
+            // Initialize the Farcaster integration
+            async initialize() {
+                try {
+                    logDebug('Initializing Farcaster integration');
+                    
+                    // Check if SDK is available
+                    if (!window.sdk) {
+                        logDebug("Farcaster SDK not available");
+                        return false;
+                    }
+                    
+                    // Tell Farcaster the app is ready to display
+                    await window.sdk.actions.ready();
+                    
+                    // Get user context if available
+                    const context = await window.sdk.context.get();
+                    if (context && context.user) {
+                        this.user = context.user;
+                        logDebug("Farcaster user connected:", this.user);
+                    }
+                    
+                    // Subscribe to relevant events
+                    this.subscribeToEvents();
+                    
+                    this.initialized = true;
+                    logDebug("Farcaster integration initialized");
+                    
+                    return true;
+                } catch (error) {
+                    logDebug("Failed to initialize Farcaster", error);
+                    return false;
+                }
+            }
+            
+            // Add Farcaster Mini App metadata to page head (already done in HTML header)
+            addMetaTags() {
+                // Already added as a script tag in the HTML head
+            }
+            
+            // Subscribe to Farcaster events
+            subscribeToEvents() {
+                if (!window.sdk) return;
+                
+                try {
+                    // Handle app being added by user
+                    window.sdk.events.onAdd((event) => {
+                        logDebug("App was added by user:", event);
+                        this.showAddedNotification();
+                    });
+                    
+                    // Handle close event
+                    window.sdk.events.onClose(() => {
+                        logDebug("App was closed");
+                        // Save any necessary state
+                    });
+                } catch (error) {
+                    logDebug("Error subscribing to Farcaster events", error);
+                }
+            }
+            
+            // Get the connected Farcaster user if available
+            getUser() {
+                return this.user;
+            }
+            
+            // Show a welcome notification when app is added
+            showAddedNotification() {
+                try {
+                    const notification = document.createElement('div');
+                    notification.className = 'farcaster-notification';
+                    notification.innerHTML = `
+                        <div class="notification-content">
+                            <div class="notification-icon"></div>
+                            <div class="notification-text">
+                                <h3>Welcome to ForeCastr!</h3>
+                                <p>You've successfully added this app to your Farcaster profile</p>
+                            </div>
+                            <button class="notification-close">×</button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(notification);
+                    
+                    // Add event listener to close button
+                    notification.querySelector('.notification-close').addEventListener('click', () => {
+                        notification.remove();
+                    });
+                    
+                    // Auto-remove after 5 seconds
+                    setTimeout(() => {
+                        notification.classList.add('fade-out');
+                        setTimeout(() => notification.remove(), 500);
+                    }, 5000);
+                } catch (error) {
+                    logDebug("Error showing added notification", error);
+                }
+            }
+            
+            // Share a prediction to Farcaster
+            async sharePrediction(prediction) {
+                if (!this.initialized || !window.sdk) {
+                    logDebug("Farcaster not initialized yet");
+                    return false;
+                }
+                
+                try {
+                    // Format the prediction for sharing
+                    const text = `🔮 I just used ForeCastr to predict that ${prediction.account} will reach ${prediction.targetValue.toLocaleString()} ${prediction.metric} by ${new Date(prediction.deadline).toLocaleDateString()}`;
+                    
+                    // Share to Farcaster
+                    const result = await window.sdk.actions.share({
+                        text,
+                        url: window.location.href
+                    });
+                    
+                    logDebug("Prediction shared to Farcaster:", result);
+                    return true;
+                } catch (error) {
+                    logDebug("Failed to share prediction:", error);
+                    return false;
+                }
+            }
+            
+            // Request authentication from Farcaster
+            async authenticate() {
+                if (!this.initialized && window.sdk) {
+                    await this.initialize();
+                }
+                
+                if (!window.sdk) {
+                    logDebug("Farcaster SDK not available");
+                    return null;
+                }
+                
+                try {
+                    const authResult = await window.sdk.actions.authenticate();
+                    this.user = authResult.user;
+                    
+                    logDebug("User authenticated with Farcaster:", this.user);
+                    return this.user;
+                } catch (error) {
+                    logDebug("Failed to authenticate with Farcaster:", error);
+                    return null;
+                }
+            }
+            
+            // Check if app is running in Farcaster context
+            isInFarcasterContext() {
+                return window.sdk && window.sdk.context && typeof window.sdk.context.isInApp === 'function' && window.sdk.context.isInApp();
+            }
+            
+            // Request to add the app to user's Farcaster profile
+            async requestAddApp() {
+                if (!this.initialized && window.sdk) {
+                    await this.initialize();
+                }
+                
+                if (!window.sdk) {
+                    logDebug("Farcaster SDK not available");
+                    return false;
+                }
+                
+                try {
+                    const result = await window.sdk.actions.addFrame();
+                    logDebug("Add app result:", result);
+                    return result.added;
+                } catch (error) {
+                    logDebug("Failed to add app:", error);
+                    return false;
+                }
+            }
+        }
+
+        // Initialize the app on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            logDebug('DOM content loaded, initializing app');
+            initializeApp();
+        });
+
+        // Initialize Multisynq error timeout - if app doesn't initialize within 10 seconds, fall back to standalone mode
+        setTimeout(function() {
+            const loadingElement = document.getElementById('loading');
+            const mainContent = document.getElementById('main-content');
+            
+            if (loadingElement && loadingElement.style.display !== 'none') {
+                logDebug('Loading timeout reached, falling back to standalone mode');
+                showError('Connection timed out. Switching to offline mode.');
+                startStandaloneMode();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
